@@ -135,13 +135,6 @@ def create_image_level_dataframe(long_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         Wide format dataframe with one row per image
     """
-    # Pivot targets to columns
-    target_cols = long_df.pivot(
-        index="image_id",
-        columns="target_name",
-        values="target"
-    ).reset_index()
-    
     # Get metadata (same for all 5 rows of each image)
     metadata_cols = ["image_id", "image_path"]
     optional_cols = ["State", "Species", "Pre_GSHH_NDVI", "Height_Ave_cm", 
@@ -153,8 +146,19 @@ def create_image_level_dataframe(long_df: pd.DataFrame) -> pd.DataFrame:
     
     metadata = long_df[metadata_cols].drop_duplicates(subset=["image_id"]).reset_index(drop=True)
     
-    # Merge metadata with targets
-    image_df = metadata.merge(target_cols, on="image_id", how="left")
+    # Pivot targets to columns (only if target column exists - not in test data)
+    if "target" in long_df.columns:
+        target_cols = long_df.pivot(
+            index="image_id",
+            columns="target_name",
+            values="target"
+        ).reset_index()
+        
+        # Merge metadata with targets
+        image_df = metadata.merge(target_cols, on="image_id", how="left")
+    else:
+        # Test data - no targets to pivot
+        image_df = metadata
     
     # Validate derived target relationships (if targets exist)
     if "Dry_Green_g" in image_df.columns:
