@@ -1,0 +1,48 @@
+# Inference configuration for MultiModalAttentionFusion model
+experiment_name: "inference_multimodal_attention"
+output_dir: "outputs/multimodal_attention"
+
+checkpoint:
+  path: "outputs/multimodal_attention/model_best.pth"
+
+data:
+  data_dir: "data"
+  test_csv: "data/test.csv"
+  sample_submission_csv: "data/sample_submission.csv"
+
+inference:
+  batch_size: 1
+  num_workers: 0
+  use_amp: true
+  device: "cuda"
+
+output:
+  submission_file: "submission.csv"
+  predictions_file: "predictions.csv"
+
+tta:
+  enabled: true
+  num_augmentations: 5
+
+image:
+  size: 300  # Match training config for EfficientNet-B3
+
+features:
+  categorical:
+    - "State"
+    - "Species"
+  continuous:
+    - "Pre_GSHH_NDVI"
+    - "Height_Ave_cm"
+
+targets:
+  base:
+    - "Dry_Green_g"
+    - "Dry_Dead_g"
+    - "Dry_Clover_g"
+  all:
+    - "Dry_Green_g"
+    - "Dry_Dead_g"
+    - "Dry_Clover_g"
+    - "GDM_g"
+    - "Dry_Total_g"

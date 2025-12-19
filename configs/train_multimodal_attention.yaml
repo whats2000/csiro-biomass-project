@@ -1,0 +1,72 @@
+# Training configuration for Multi-Modal Attention Fusion Model (Enhanced)
+# This model uses cross-attention, SE blocks, and transformer layers for better fusion
+
+experiment_name: "multimodal_attention_enhanced"
+output_dir: "outputs/multimodal_attention"
+
+# Data paths
+data:
+  data_dir: "data"
+  train_csv: "data/train.csv"
+  test_csv: "data/test.csv"
+  sample_submission_csv: "data/sample_submission.csv"
+
+# Model architecture
+model:
+  name: "multimodal_attention"  # simple_concat, multimodal_attention
+  backbone: "efficientnet_b3"  # Larger backbone for better features
+  pretrained: true
+  freeze_backbone: true
+  
+  # Model hyperparameters
+  hidden_dim: 512  # Larger than baseline
+  dropout: 0.3
+  categorical_embedding_dim: 32  # Larger embedding
+  
+  # Advanced model options (specific to multimodal_attention)
+  use_cross_attention: true
+  use_transformer_blocks: true
+  num_transformer_layers: 2
+
+# Image processing
+image:
+  size: 300  # Larger image size for EfficientNet-B3
+
+# Training parameters
+training:
+  n_folds: 5
+  epochs: 40  # More epochs for complex model
+  batch_size: 16  # Smaller batch due to larger model
+  learning_rate: 0.0005  # Lower LR for stability
+  weight_decay: 0.0005  # Stronger regularization
+  num_workers: 4
+  use_amp: true
+  seed: 42
+
+# Tabular features
+features:
+  categorical:
+    - "State"
+    - "Species"
+  continuous:
+    - "Pre_GSHH_NDVI"
+    - "Height_Ave_cm"
+
+# Target components
+targets:
+  base:
+    - "Dry_Green_g"
+    - "Dry_Dead_g"
+    - "Dry_Clover_g"
+  all:
+    - "Dry_Green_g"
+    - "Dry_Dead_g"
+    - "Dry_Clover_g"
+    - "GDM_g"
+    - "Dry_Total_g"
+  weights:
+    Dry_Green_g: 0.1
+    Dry_Dead_g: 0.1
+    Dry_Clover_g: 0.1
+    GDM_g: 0.2
+    Dry_Total_g: 0.5

@@ -1,6 +1,7 @@
 """Inference script to generate submission.csv (Step 9)."""
 
 import sys
+import argparse
 from pathlib import Path
 import logging
 import torch
@@ -19,7 +20,7 @@ from biomass.data import (
     get_val_transforms,
     BiomassDataset,
 )
-from biomass.models import get_vision_backbone, BiomassPredictor
+from biomass.models import get_vision_backbone, get_model
 
 # Setup logging
 logging.basicConfig(
@@ -39,30 +40,61 @@ def load_trained_model(checkpoint_path: Path, config: Config):
     Returns:
         Loaded model
     """
+    # Load checkpoint to get model config if available
+    checkpoint = torch.load(checkpoint_path, map_location=config.device, weights_only=False)
+    
+    # Use config from checkpoint if available, otherwise use current config
+    if 'config' in checkpoint and hasattr(checkpoint['config'], 'model_name'):
+        model_config = checkpoint['config']
+        logger.info(f"Using model config from checkpoint: {model_config.model_name}")
+    else:
+        model_config = config
+        logger.info(f"Using current config: {config.model_name}")
+    
     # Create model architecture
-    backbone, embedding_dim = get_vision_backbone(
-        model_name=config.backbone,
-        pretrained=False,  # Will load from checkpoint
-        freeze=config.freeze_backbone,
-    )
+    num_cat = len(model_config.categorical_features)
+    num_cont = len(model_config.continuous_features)
     
-    num_cat = len(config.categorical_features)
-    num_cont = len(config.continuous_features)
-    
-    model = BiomassPredictor(
-        vision_backbone=backbone,
-        vision_embedding_dim=embedding_dim,
-        num_categorical_features=num_cat,
-        categorical_embedding_dim=16,
-        num_continuous_features=num_cont,
-        hidden_dim=256,
-        dropout=0.3,
-        num_outputs=len(config.base_targets),
-        freeze_backbone=config.freeze_backbone,
-    )
+    # DINO model creates its own backbone internally
+    if model_config.model_name.lower() in ['dino_vision', 'dino', 'vision_only']:
+        model = get_model(
+            model_name=model_config.model_name,
+            vision_backbone=None,  # DINO creates its own
+            vision_embedding_dim=768,  # DINO default
+            num_categorical_features=num_cat,
+            categorical_embedding_dim=getattr(model_config, 'categorical_embedding_dim', 16),
+            num_continuous_features=num_cont,
+            hidden_dim=getattr(model_config, 'hidden_dim', 256),
+            dropout=getattr(model_config, 'dropout', 0.1),
+            num_outputs=len(model_config.base_targets),
+            freeze_backbone=model_config.freeze_backbone,
+        )
+    else:
+        # Other models need a separate backbone
+        backbone, embedding_dim = get_vision_backbone(
+            model_name=model_config.backbone,
+            pretrained=False,  # Will load from checkpoint
+            freeze=model_config.freeze_backbone,
+        )
+        
+        model = get_model(
+            model_name=model_config.model_name,
+            vision_backbone=backbone,
+            vision_embedding_dim=embedding_dim,
+            num_categorical_features=num_cat,
+            categorical_embedding_dim=getattr(model_config, 'categorical_embedding_dim', 16),
+            num_continuous_features=num_cont,
+            hidden_dim=getattr(model_config, 'hidden_dim', 256),
+            dropout=getattr(model_config, 'dropout', 0.3),
+            num_outputs=len(model_config.base_targets),
+            freeze_backbone=model_config.freeze_backbone,
+            # Advanced options
+            use_cross_attention=getattr(model_config, 'use_cross_attention', True),
+            use_transformer_blocks=getattr(model_config, 'use_transformer_blocks', True),
+            num_transformer_layers=getattr(model_config, 'num_transformer_layers', 2),
+        )
     
     # Load checkpoint
-    checkpoint = torch.load(checkpoint_path, map_location=config.device, weights_only=False)
     model.load_state_dict(checkpoint["model_state_dict"])
     model = model.to(config.device)
     model.eval()
@@ -171,9 +203,20 @@ def create_submission(
     logger.info(f"  Target range: [{submission['target'].min():.2f}, {submission['target'].max():.2f}]")
 
 
-def main():
+def main(checkpoint_path_override=None):
     """Main inference function."""
-    config = Config()
+    # Config should already be set from command-line args
+    # This function now receives config from the if __name__ == "__main__" block
+    pass
+
+
+def run_inference(config: Config, checkpoint_path_override: str = None):
+    """Run inference with given config.
+    
+    Args:
+        config: Configuration object
+        checkpoint_path_override: Optional path to checkpoint (overrides config)
+    """
     set_seed(config.seed)
     
     logger.info(f"Using device: {config.device}")
@@ -220,8 +263,12 @@ def main():
         pin_memory=True,
     )
     
-    # Load the trained model
-    model_path = config.output_dir / "model_best.pth"
+    # Determine checkpoint path
+    if checkpoint_path_override:
+        model_path = Path(checkpoint_path_override)
+    else:
+        model_path = config.output_dir / "model_best.pth"
+    
     if not model_path.exists():
         logger.error(f"No trained model found at {model_path}! Run train.py first.")
         return
@@ -248,4 +295,39 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Run inference on test set')
+    parser.add_argument(
+        '--config',
+        type=str,
+        default=None,
+        help='Path to YAML config file (e.g., configs/inference.yaml)'
+    )
+    parser.add_argument(
+        '--checkpoint',
+        type=str,
+        default=None,
+        help='Path to model checkpoint (overrides config)'
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default=None,
+        help='Output directory override'
+    )
+    args = parser.parse_args()
+    
+    # Setup config
+    if args.config:
+        logger.info(f"Loading config from: {args.config}")
+        config = Config.from_yaml(args.config)
+    else:
+        logger.info("Using default config")
+        config = Config()
+    
+    # Apply command-line overrides
+    if args.output_dir:
+        config.output_dir = Path(args.output_dir)
+        logger.info(f"Output directory override: {args.output_dir}")
+    
+    run_inference(config, checkpoint_path_override=args.checkpoint)

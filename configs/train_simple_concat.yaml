@@ -1,0 +1,67 @@
+# Training configuration for Simple Concatenation Fusion Model (Baseline)
+# This is the basic model that concatenates vision and tabular features
+
+experiment_name: "simple_concat_baseline"
+output_dir: "outputs/simple_concat"
+
+# Data paths
+data:
+  data_dir: "data"
+  train_csv: "data/train.csv"
+  test_csv: "data/test.csv"
+  sample_submission_csv: "data/sample_submission.csv"
+
+# Model architecture
+model:
+  name: "simple_concat"  # simple_concat, multimodal_attention
+  backbone: "efficientnet_b0"  # efficientnet_b0, efficientnet_b3, resnet50, etc.
+  pretrained: true
+  freeze_backbone: true
+  
+  # Model hyperparameters
+  hidden_dim: 256
+  dropout: 0.3
+  categorical_embedding_dim: 16
+
+# Image processing
+image:
+  size: 224
+
+# Training parameters
+training:
+  n_folds: 5
+  epochs: 30
+  batch_size: 32
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  num_workers: 4
+  use_amp: true  # Mixed precision training
+  seed: 42
+
+# Tabular features
+features:
+  categorical:
+    - "State"
+    - "Species"
+  continuous:
+    - "Pre_GSHH_NDVI"
+    - "Height_Ave_cm"
+
+# Target components
+targets:
+  base:
+    - "Dry_Green_g"
+    - "Dry_Dead_g"
+    - "Dry_Clover_g"
+  all:
+    - "Dry_Green_g"
+    - "Dry_Dead_g"
+    - "Dry_Clover_g"
+    - "GDM_g"
+    - "Dry_Total_g"
+  weights:
+    Dry_Green_g: 0.1
+    Dry_Dead_g: 0.1
+    Dry_Clover_g: 0.1
+    GDM_g: 0.2
+    Dry_Total_g: 0.5

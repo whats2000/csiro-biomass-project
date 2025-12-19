@@ -1,0 +1,48 @@
+# Inference configuration for SimpleConcatFusion model
+experiment_name: "inference_simple_concat"
+output_dir: "outputs/simple_concat"
+
+checkpoint:
+  path: "outputs/simple_concat/model_best.pth"
+
+data:
+  data_dir: "data"
+  test_csv: "data/test.csv"
+  sample_submission_csv: "data/sample_submission.csv"
+
+inference:
+  batch_size: 1
+  num_workers: 0
+  use_amp: true
+  device: "cuda"
+
+output:
+  submission_file: "submission.csv"
+  predictions_file: "predictions.csv"
+
+tta:
+  enabled: true
+  num_augmentations: 5
+
+image:
+  size: 224
+
+features:
+  categorical:
+    - "State"
+    - "Species"
+  continuous:
+    - "Pre_GSHH_NDVI"
+    - "Height_Ave_cm"
+
+targets:
+  base:
+    - "Dry_Green_g"
+    - "Dry_Dead_g"
+    - "Dry_Clover_g"
+  all:
+    - "Dry_Green_g"
+    - "Dry_Dead_g"
+    - "Dry_Clover_g"
+    - "GDM_g"
+    - "Dry_Total_g"

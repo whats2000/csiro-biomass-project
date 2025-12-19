@@ -32,12 +32,12 @@ env/
 *.ipynb
 
 # Model outputs and checkpoints
-outputs/
+/outputs
 *.pth
 *.pt
 *.ckpt
 *.pkl
-models/
+/models
 
 # Submissions
 /submission.csv

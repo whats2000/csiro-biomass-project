@@ -1,0 +1,35 @@
+# Training config for DINO (CrossPVT_T2T_MambaDINO) model
+experiment_name: dino_pyramid_mamba
+
+data:
+  data_dir: data
+  train_csv: data/train.csv
+  test_csv: data/test.csv
+  sample_submission_csv: data/sample_submission.csv
+
+model:
+  name: dino_vision
+  backbone: vit_base_patch14_dinov2
+  pretrained: true
+  freeze_backbone: false  # Train full model for best performance
+  hidden_dim: 256
+  dropout: 0.1
+  categorical_embedding_dim: 16
+  use_cross_attention: true
+  use_transformer_blocks: true
+  num_transformer_layers: 2
+
+image:
+  size: 518  # DINO ViT default resolution
+
+training:
+  epochs: 30
+  batch_size: 4  # DINO is memory-intensive
+  learning_rate: 0.0001  # Lower LR for fine-tuning pretrained model
+  weight_decay: 0.0001
+  num_workers: 4
+  use_amp: true
+  seed: 42
+
+output:
+  output_dir: outputs/dino_pyramid_mamba

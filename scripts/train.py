@@ -1,6 +1,7 @@
 """Main training script without cross-validation."""
 
 import sys
+import argparse
 from pathlib import Path
 import logging
 import torch
@@ -23,7 +24,7 @@ from biomass.data import (
     create_dataloaders,
 )
 from biomass.training import train_one_epoch, evaluate, create_optimizer
-from biomass.models import get_vision_backbone, BiomassPredictor
+from biomass.models import get_vision_backbone, get_model
 
 # Setup logging
 logging.basicConfig(
@@ -93,26 +94,49 @@ def train_model(config: Config):
     )
     
     # Create model
-    backbone, embedding_dim = get_vision_backbone(
-        model_name=config.backbone,
-        pretrained=config.pretrained,
-        freeze=config.freeze_backbone,
-    )
-    
     num_cat = len(config.categorical_features)
     num_cont = len(config.continuous_features)
     
-    model = BiomassPredictor(
-        vision_backbone=backbone,
-        vision_embedding_dim=embedding_dim,
-        num_categorical_features=num_cat,
-        categorical_embedding_dim=16,
-        num_continuous_features=num_cont,
-        hidden_dim=256,
-        dropout=0.3,
-        num_outputs=len(config.base_targets),
-        freeze_backbone=config.freeze_backbone,
-    )
+    logger.info(f"Creating model: {config.model_name}")
+    
+    # DINO model creates its own backbone internally
+    if config.model_name.lower() in ['dino_vision', 'dino', 'vision_only']:
+        model = get_model(
+            model_name=config.model_name,
+            vision_backbone=None,  # DINO creates its own
+            vision_embedding_dim=768,  # DINO default
+            num_categorical_features=num_cat,
+            categorical_embedding_dim=config.categorical_embedding_dim,
+            num_continuous_features=num_cont,
+            hidden_dim=config.hidden_dim,
+            dropout=config.dropout,
+            num_outputs=len(config.base_targets),
+            freeze_backbone=config.freeze_backbone,
+        )
+    else:
+        # Other models need a separate backbone
+        backbone, embedding_dim = get_vision_backbone(
+            model_name=config.backbone,
+            pretrained=config.pretrained,
+            freeze=config.freeze_backbone,
+        )
+        
+        model = get_model(
+            model_name=config.model_name,
+            vision_backbone=backbone,
+            vision_embedding_dim=embedding_dim,
+            num_categorical_features=num_cat,
+            categorical_embedding_dim=config.categorical_embedding_dim,
+            num_continuous_features=num_cont,
+            hidden_dim=config.hidden_dim,
+            dropout=config.dropout,
+            num_outputs=len(config.base_targets),
+            freeze_backbone=config.freeze_backbone,
+            # Additional arguments for advanced models
+            use_cross_attention=config.use_cross_attention,
+            use_transformer_blocks=config.use_transformer_blocks,
+            num_transformer_layers=config.num_transformer_layers,
+        )
     
     model = model.to(config.device)
     
@@ -196,12 +220,57 @@ def train_model(config: Config):
 
 def main():
     """Main training function."""
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Train biomass prediction model')
+    parser.add_argument(
+        '--config',
+        type=str,
+        default=None,
+        help='Path to YAML config file (e.g., configs/train_simple_concat.yaml)'
+    )
+    parser.add_argument(
+        '--model',
+        type=str,
+        default=None,
+        help='Model name override (simple_concat, multimodal_attention)'
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default=None,
+        help='Output directory override'
+    )
+    args = parser.parse_args()
+    
     # Setup
-    config = Config()
+    if args.config:
+        logger.info(f"Loading config from: {args.config}")
+        config = Config.from_yaml(args.config)
+    else:
+        logger.info("Using default config")
+        config = Config()
+    
+    # Apply command-line overrides
+    if args.model:
+        config.model_name = args.model
+        logger.info(f"Model override: {args.model}")
+    
+    if args.output_dir:
+        config.output_dir = Path(args.output_dir)
+        logger.info(f"Output directory override: {args.output_dir}")
+    
     set_seed(config.seed)
     
     logger.info(f"Using device: {config.device}")
-    logger.info(f"Config: {config}")
+    logger.info(f"Experiment: {config.experiment_name}")
+    logger.info(f"Model: {config.model_name}")
+    logger.info(f"Backbone: {config.backbone}")
+    logger.info(f"Output directory: {config.output_dir}")
+    
+    # Save config to output directory
+    config_save_path = config.output_dir / "config.yaml"
+    config.save_yaml(config_save_path)
+    logger.info(f"Saved config to: {config_save_path}")
     
     # Train the model
     result = train_model(config)
@@ -210,8 +279,11 @@ def main():
     logger.info("\n" + "="*60)
     logger.info("Training Summary")
     logger.info("="*60)
+    logger.info(f"Experiment: {config.experiment_name}")
+    logger.info(f"Model: {config.model_name}")
     logger.info(f"Best Validation R²: {result['best_val_r2']:.4f}")
     logger.info(f"Best Epoch: {result['best_epoch'] + 1}")
+    logger.info(f"Output: {config.output_dir}")
     logger.info("="*60)
 
 
