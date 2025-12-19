@@ -98,6 +98,9 @@ class BiomassDataset(Dataset):
                 val = row[feat]
                 encoded = self.cat_encoders[feat].get(val, 0)  # Default to 0 if unknown
                 tabular_features.append(encoded)
+            else:
+                # Missing feature - use default encoding (0)
+                tabular_features.append(0)
         
         # Continuous features (normalized)
         for feat in self.continuous_features:
@@ -108,6 +111,9 @@ class BiomassDataset(Dataset):
                     std = self.continuous_stats[feat]["std"]
                     val = (val - mean) / (std + 1e-8)
                 tabular_features.append(val)
+            else:
+                # Missing feature - use default value (0.0, which is the normalized mean)
+                tabular_features.append(0.0)
         
         tabular_tensor = torch.tensor(tabular_features, dtype=torch.float32)
         
