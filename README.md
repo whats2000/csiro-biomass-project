@@ -4,6 +4,8 @@ GPU-accelerated PyTorch pipeline for predicting pasture biomass from field image
 
 ## Project Goal
 
+This project implements a solution for the [CSIRO Pasture Biomass Prediction](https://www.kaggle.com/competitions/csiro-biomass/) Kaggle competition.
+
 Build a production-ready model that predicts pasture biomass (grams) for each `(image, target_name)` pair using:
 - Field images
 - Tabular covariates (NDVI, height, state, species, sampling date)
