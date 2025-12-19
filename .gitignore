@@ -1,19 +1,83 @@
 # Python-generated files
 __pycache__/
 *.py[oc]
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
 dist/
 wheels/
 *.egg-info
+.installed.cfg
+*.egg
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
 
 # Virtual environments
-.venv
+.venv/
+venv/
+ENV/
+env/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Model outputs and checkpoints
+outputs/
+*.pth
+*.pt
+*.ckpt
+*.pkl
+models/
+
+# Submissions
 /submission.csv
 /submission_*.csv
-/data/*.csv
+
+# Data files (large)
 /data/train/*.jpg
 /data/test/*.jpg
+/data/*.jpg
+/data/*.jpeg
+/data/*.png
+/data/*.tif
+/data/*.tiff
+/data/*.csv
+
+# Logs
+*.log
+logs/
 
 # IDE files
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing and coverage
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+
+# uv
+.uv/
+
